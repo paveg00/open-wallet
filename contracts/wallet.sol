@@ -33,17 +33,32 @@ contract TrustedOwnable is Ownable {
         _;
     }
 
+    modifier onlyTrusterOrOwner() {
+        require(accounts[msg.sender] == AccountStatus.Truster || msg.sender == owner());
+        _;
+    }
+
     constructor() Ownable() {
 
     }
     
-    function clearRequestOwnerStatus() private onlyOwner {
+    function clearRequestOwnerStatus() private {
         change_owner_status.suggestion = address(0);
         change_owner_status.approves = 0;
         epoch += 1;
     }
 
     function revokeTruster(address truster) public onlyOwner {
+        if (accounts[truster] != AccountStatus.Truster) {
+            return;
+        }
+        accounts[truster] = AccountStatus.Unknown;
+        trusters -= 1; 
+        emit TrusterChanged(truster);
+        clearRequestOwnerStatus();
+    }
+
+    function approveTruster(address truster) public onlyOwner {
         if (accounts[truster] == AccountStatus.Truster) {
             return;
         }
@@ -53,30 +68,20 @@ contract TrustedOwnable is Ownable {
         clearRequestOwnerStatus();
     }
 
-    function approveTruster(address truster) public onlyOwner {
-        if (accounts[truster] != AccountStatus.Truster) {
-            return;
-        }
-        accounts[truster] = AccountStatus.Unknown;
-        emit TrusterChanged(truster);
-        trusters -= 1; 
-        clearRequestOwnerStatus();
-    }
-
-    function requestChangeOwner(address new_owner) public onlyTruster {
+    function requestChangeOwner(address new_owner) public onlyTrusterOrOwner {
         clearRequestOwnerStatus();
         change_owner_status.suggestion = new_owner;
     }
 
-    function voteForOwner(address new_owner) public onlyTruster checkChangeOwnerStatus(new_owner) {
+    function voteForOwner(address new_owner) external onlyTruster checkChangeOwnerStatus(new_owner) {
         if (change_owner_status.approvers[msg.sender] == epoch) {
             return;
         }
         change_owner_status.approvers[msg.sender] = epoch;
         change_owner_status.approves += 1;
         if (change_owner_status.approves == trusters) {
-            transferOwnership(new_owner);
-            OwnerChanged(new_owner);
+            _transferOwnership(new_owner);
+            emit OwnerChanged(new_owner);
             clearRequestOwnerStatus();
         }
     }
@@ -84,14 +89,26 @@ contract TrustedOwnable is Ownable {
 }
 
 
-contract WalletAbstraction is Ownable {
+contract WalletAbstraction is TrustedOwnable {
     IERC20 public token;
 
-    constructor (IERC20 _token) Ownable() {
+    constructor (IERC20 _token) TrustedOwnable() {
         token = _token;
     }
 
     function sendTokens(address reciever, uint256 amount) public onlyOwner {
-        token.transferFrom(address(this), reciever, amount);
+        token.transfer(reciever, amount);
+    }
+
+    function balance() public view onlyOwner returns (uint256)  {
+        return token.balanceOf(address(this));
+    }
+
+}
+
+
+contract MyERC20 is ERC20 {
+    constructor(string memory name_, string memory symbol_, uint256 initBalance) ERC20(name_, symbol_) {
+        _mint(msg.sender, initBalance);
     }
 }
