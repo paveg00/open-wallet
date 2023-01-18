@@ -20,6 +20,7 @@ contract TrustedOwnable is Ownable {
     ChangeOwnerStatus private change_owner_status;
 
     event OwnerChanged(address next);
+    event TrusterChanged(address truster);
 
     
 
@@ -32,10 +33,14 @@ contract TrustedOwnable is Ownable {
         _;
     }
 
+    constructor() Ownable() {
+
+    }
+    
     function clearRequestOwnerStatus() private onlyOwner {
         change_owner_status.suggestion = address(0);
         change_owner_status.approves = 0;
-        epoch = 0;
+        epoch += 1;
     }
 
     function revokeTruster(address truster) public onlyOwner {
@@ -44,6 +49,7 @@ contract TrustedOwnable is Ownable {
         }
         accounts[truster] = AccountStatus.Truster;
         trusters += 1; 
+        emit TrusterChanged(truster);
         clearRequestOwnerStatus();
     }
 
@@ -52,6 +58,7 @@ contract TrustedOwnable is Ownable {
             return;
         }
         accounts[truster] = AccountStatus.Unknown;
+        emit TrusterChanged(truster);
         trusters -= 1; 
         clearRequestOwnerStatus();
     }
@@ -69,6 +76,7 @@ contract TrustedOwnable is Ownable {
         change_owner_status.approves += 1;
         if (change_owner_status.approves == trusters) {
             transferOwnership(new_owner);
+            OwnerChanged(new_owner);
             clearRequestOwnerStatus();
         }
     }
@@ -79,7 +87,7 @@ contract TrustedOwnable is Ownable {
 contract WalletAbstraction is Ownable {
     IERC20 public token;
 
-    constructor (IERC20 _token) {
+    constructor (IERC20 _token) Ownable() {
         token = _token;
     }
 
