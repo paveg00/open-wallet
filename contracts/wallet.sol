@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity >=0.6.0 <0.9.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
+import "openzeppelin-solidity/contracts/access/Ownable.sol";
 
 contract TrustedOwnable is Ownable {
 
@@ -19,7 +19,7 @@ contract TrustedOwnable is Ownable {
     uint256 private epoch = 0;
     ChangeOwnerStatus private change_owner_status;
 
-
+    event OwnerChanged(address next);
 
     
 
@@ -68,7 +68,7 @@ contract TrustedOwnable is Ownable {
         change_owner_status.approvers[msg.sender] = epoch;
         change_owner_status.approves += 1;
         if (change_owner_status.approves == trusters) {
-            _transferOwnership(new_owner);
+            transferOwnership(new_owner);
             clearRequestOwnerStatus();
         }
     }
@@ -82,8 +82,6 @@ contract WalletAbstraction is Ownable {
     constructor (IERC20 _token) {
         token = _token;
     }
-
-    event OwnerChanged(address next);
 
     function sendTokens(address reciever, uint256 amount) public onlyOwner {
         token.transferFrom(address(this), reciever, amount);

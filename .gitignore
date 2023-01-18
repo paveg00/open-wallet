@@ -374,4 +374,8 @@ node_modules
 bin_output
 logs
 
-**/artifacts/
+**/artifacts
+package-lock.json
+.vscode/
+migrations/
+
